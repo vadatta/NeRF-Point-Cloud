@@ -1,0 +1,36 @@
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Jupyter
+.ipynb_checkpoints/
+
+# PyCharm / IDE files
+.idea/
+
+# macOS
+.DS_Store
+
+# Environment variables / secrets
+.env
+
+# Model checkpoints / large ML artifacts
+*.pt
+*.pth
+*.ckpt
+*.onnx
+
+# Generated data / outputs
+outputs/
+runs/
+wandb/
+
+# Node / frontend dependencies if using Three.js with npm later
+node_modules/
+dist/
