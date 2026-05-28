@@ -53,6 +53,129 @@ const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
 scene.add(ambientLight);
 
 // ----------------------------------------------------
+// Density threshold slider
+// ----------------------------------------------------
+
+const densityPercentileSlider = document.getElementById(
+  "density-percentile-slider"
+);
+const densityPercentileValue = document.getElementById(
+  "density-percentile-value"
+);
+
+let densityPointGeometry = null;
+let totalDensityPoints = 0;
+
+function formatPercentile(percentile) {
+  const suffix =
+    percentile % 10 === 1 && percentile % 100 !== 11
+      ? "st"
+      : percentile % 10 === 2 && percentile % 100 !== 12
+        ? "nd"
+        : percentile % 10 === 3 && percentile % 100 !== 13
+          ? "rd"
+          : "th";
+
+  return `${percentile}${suffix} percentile`;
+}
+
+function updateDensityThreshold() {
+  if (!densityPercentileSlider || !densityPercentileValue) {
+    return;
+  }
+
+  const percentile = Number(densityPercentileSlider.value);
+  densityPercentileValue.textContent = formatPercentile(percentile);
+
+  if (!densityPointGeometry) {
+    return;
+  }
+
+  const visiblePointCount =
+    percentile === 0
+      ? 0
+      : Math.floor((percentile / 100) * totalDensityPoints);
+
+  densityPointGeometry.setDrawRange(0, visiblePointCount);
+}
+
+if (densityPercentileSlider) {
+  densityPercentileSlider.addEventListener("input", updateDensityThreshold);
+  updateDensityThreshold();
+}
+
+function inferDensityScoreFromColor(red, green, blue) {
+  // The exported PLY encodes density with the inferno colormap. The red channel
+  // increases monotonically across that map, so it gives us a stable sortable
+  // proxy for density without changing the notebook export.
+  return red + green * 0.001 + blue * 0.000001;
+}
+
+function buildSortedDensityGeometry(geometry) {
+  const positionAttribute = geometry.attributes.position;
+  const colorAttribute = geometry.attributes.color;
+  const pointCount = positionAttribute.count;
+
+  if (!colorAttribute) {
+    return geometry;
+  }
+
+  const sortedIndices = Array.from({ length: pointCount }, (_, index) => index);
+  sortedIndices.sort((leftIndex, rightIndex) => {
+    const leftColorIndex = leftIndex * colorAttribute.itemSize;
+    const rightColorIndex = rightIndex * colorAttribute.itemSize;
+
+    const leftScore = inferDensityScoreFromColor(
+      colorAttribute.array[leftColorIndex],
+      colorAttribute.array[leftColorIndex + 1],
+      colorAttribute.array[leftColorIndex + 2]
+    );
+    const rightScore = inferDensityScoreFromColor(
+      colorAttribute.array[rightColorIndex],
+      colorAttribute.array[rightColorIndex + 1],
+      colorAttribute.array[rightColorIndex + 2]
+    );
+
+    return leftScore - rightScore;
+  });
+
+  const sortedGeometry = new THREE.BufferGeometry();
+  const sortedPositions = new Float32Array(positionAttribute.array.length);
+  const sortedColors = new Float32Array(colorAttribute.array.length);
+
+  sortedIndices.forEach((sourceIndex, targetIndex) => {
+    const sourcePositionIndex = sourceIndex * positionAttribute.itemSize;
+    const targetPositionIndex = targetIndex * positionAttribute.itemSize;
+
+    for (let offset = 0; offset < positionAttribute.itemSize; offset += 1) {
+      sortedPositions[targetPositionIndex + offset] =
+        positionAttribute.array[sourcePositionIndex + offset];
+    }
+
+    const sourceColorIndex = sourceIndex * colorAttribute.itemSize;
+    const targetColorIndex = targetIndex * colorAttribute.itemSize;
+
+    for (let offset = 0; offset < colorAttribute.itemSize; offset += 1) {
+      sortedColors[targetColorIndex + offset] =
+        colorAttribute.array[sourceColorIndex + offset];
+    }
+  });
+
+  sortedGeometry.setAttribute(
+    "position",
+    new THREE.BufferAttribute(sortedPositions, positionAttribute.itemSize)
+  );
+  sortedGeometry.setAttribute(
+    "color",
+    new THREE.BufferAttribute(sortedColors, colorAttribute.itemSize)
+  );
+  sortedGeometry.boundingBox = geometry.boundingBox.clone();
+  sortedGeometry.boundingSphere = geometry.boundingSphere?.clone() ?? null;
+
+  return sortedGeometry;
+}
+
+// ----------------------------------------------------
 // Load point cloud
 // ----------------------------------------------------
 
@@ -117,7 +240,12 @@ loader.load(
     // material.vertexColors = false;
     // material.color = new THREE.Color(0xff0000);
 
-    const points = new THREE.Points(geometry, material);
+    const renderGeometry = buildSortedDensityGeometry(geometry);
+    densityPointGeometry = renderGeometry;
+    totalDensityPoints = renderGeometry.attributes.position.count;
+    updateDensityThreshold();
+
+    const points = new THREE.Points(renderGeometry, material);
     points.scale.setScalar(scale);
 
     scene.add(points);

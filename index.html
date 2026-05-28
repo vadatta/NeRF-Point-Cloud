@@ -98,6 +98,48 @@
       text-align: center;
       line-height: 1.3;
     }
+
+    #threshold-control {
+      position: absolute;
+      left: 50%;
+      bottom: 22px;
+      transform: translateX(-50%);
+      width: min(640px, calc(100vw - 48px));
+      color: white;
+      background: rgba(0, 0, 0, 0.55);
+      padding: 12px 16px 14px;
+      border-radius: 10px;
+      z-index: 10;
+    }
+
+    #threshold-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 16px;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    #density-percentile-value {
+      color: #ddd;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    #density-percentile-slider {
+      width: 100%;
+      display: block;
+    }
+
+    #threshold-ticks {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 4px;
+      font-size: 12px;
+      color: #ddd;
+    }
   </style>
 </head>
 
@@ -126,6 +168,27 @@
 
     <div id="colorbar-note">
       Colors show normalized density values from the exported point cloud.
+    </div>
+  </div>
+
+  <div id="threshold-control">
+    <div id="threshold-header">
+      <label for="density-percentile-slider">Density threshold</label>
+      <span id="density-percentile-value">0th percentile</span>
+    </div>
+
+    <input
+      id="density-percentile-slider"
+      type="range"
+      min="0"
+      max="99"
+      step="1"
+      value="0"
+    />
+
+    <div id="threshold-ticks" aria-hidden="true">
+      <span>0th percentile</span>
+      <span>99th percentile</span>
     </div>
   </div>
 
